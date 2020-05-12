@@ -25,50 +25,52 @@
       const divPlayers = document.getElementById("divPlayers");
       const divBoard = document.getElementById("divBoard");
 
-      //joining a game
+      //create a game
+      btnCreate.addEventListener("click", (e) => {
+        const payLoad = {
+          method: "create",
+          clientId,
+        };
+        ws.send(JSON.stringify(payLoad));
+      });
+
+      //join a game
       btnJoin.addEventListener("click", (e) => {
+        /*set the gameId based on the value that is typed into 
+         the input field */
         if (!gameId) {
           gameId = txtGameId.value;
         }
         const payLoad = {
           method: "join",
-          clientId: clientId,
-          gameId: gameId,
+          clientId,
+          gameId,
         };
+
         ws.send(JSON.stringify(payLoad));
       });
 
-      //creating a game
-      btnCreate.addEventListener("click", (e) => {
-        const payLoad = {
-          method: "create",
-          clientId: clientId,
-        };
-        ws.send(JSON.stringify(payLoad));
-      });
-      //receive the message from the server
+      /*this websocket is listening for messages from the server.
+      All of the game data is received as response.game*/
       let ws = new WebSocket("ws://localhost:9090");
       ws.onmessage = (message) => {
         const response = JSON.parse(message.data);
+        /*upon connection, the server will send the clientId
+        to the client side at which point the clientId will be set*/
         if (response.method === "connect") {
           clientId = response.clientId;
         }
+        /* when the user clicks the create button, the server will 
+        respond by sending the game object to the client which contains the 
+        game's id. */
         if (response.method === "create") {
           gameId = response.game.id;
-        }
-        if (response.method === "update") {
-          if (!response.game.state) {
-            return;
-          }
-          for (const b of Object.keys(response.game.state)) {
-            const color = response.game.state[b];
-            const ballObject = document.getElementById("ball" + b);
-            ballObject.style.backgroundColor = color;
-          }
+          console.log(gameId);
         }
 
         if (response.method === "join") {
           const game = response.game;
+          console.log(divPlayers);
           while (divPlayers.firstChild) {
             divPlayers.removeChild(divPlayers.firstChild);
           }
@@ -97,14 +99,29 @@
               b.style.background = playerColor;
               const payLoad = {
                 method: "play",
-                clientId: clientId,
-                gameId: gameId,
+                clientId,
+                gameId,
                 ballId: b.tag,
                 color: playerColor,
               };
               ws.send(JSON.stringify(payLoad));
             });
             divBoard.appendChild(b);
+          }
+        }
+        /* when the user clicks on a box, the server will respond
+        by sending the game object which contains the state.*/
+        if (response.method === "update") {
+          if (!response.game.state) {
+            return;
+          }
+          /* The keys in the state are the ballId's. Using the keys,
+          the client sets the background color of the element to the
+          color in the state*/
+          for (const b of Object.keys(response.game.state)) {
+            const color = response.game.state[b];
+            const ballObject = document.getElementById("ball" + b);
+            ballObject.style.backgroundColor = color;
           }
         }
       };
